@@ -1,5 +1,7 @@
 const { Restaurant, Category, Comment, User } = require('../models')
 const { getOffset, getPagination } = require('../helpers/pagination-helper')
+const { Sequelize } = require('sequelize')
+const sequelize = new Sequelize('sqlite::memory:')
 
 const restaurantController = {
   getRestaurants: (req, res, next) => {
@@ -104,20 +106,37 @@ const restaurantController = {
   },
   getTopRestaurants: (req, res, next) => {
     return Restaurant.findAll({
-      limit: 10,
+      attributes: {
+        include: [
+          [
+            // Note the wrapping parentheses in the call below!
+            sequelize.literal(`(
+                    SELECT COUNT(*)
+                    FROM favorites AS FavoritedUsers
+                    WHERE
+                        FavoritedUsers.restaurant_id = restaurant.id
+                )`),
+            'favoritedCount'
+          ]
+        ]
+      },
+      order: [
+        [sequelize.literal('favoritedCount'), 'DESC']
+      ],
       include: [{ model: User, as: 'FavoritedUsers' }]
     })
       .then(restaurants => {
-        const data = restaurants
-          .map(r => ({
-            ...r.toJSON(),
-            description: r.description.substring(0, 50),
-            favoritedCount: r.FavoritedUsers.length,
-            isFavorited: req.user && req.user.FavoritedRestaurants.some(f => f.id === r.id)
-          }))
-          .sort((a, b) => b.favoritedCount - a.favoritedCount)
-
-        res.render('top-restaurants', { restaurants: data })
+        const data = restaurants.map(r => ({
+          ...r.toJSON(),
+          favoritedCount: r.FavoritedUsers.length,
+          description: r.description.substring(0, 50),
+          isFavorited: req.user && req.user.FavoritedRestaurants.some(f => f.id === r.id)
+        }))
+        const newdata = data.slice(0, 10)
+        console.log(newdata)
+        return res.render('top-restaurants', {
+          restaurants: newdata
+        })
       })
       .catch(err => next(err))
   }
