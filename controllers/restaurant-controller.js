@@ -133,7 +133,6 @@ const restaurantController = {
           isFavorited: req.user && req.user.FavoritedRestaurants.some(f => f.id === r.id)
         }))
         const newdata = data.slice(0, 10)
-        console.log(newdata)
         return res.render('top-restaurants', {
           restaurants: newdata
         })
