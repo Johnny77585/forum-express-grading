@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs')
+const userServices = require('../../services/user-services')
 const { User, Restaurant, Comment, Favorite, Like, Followship } = require('../../models')
 const { imgurFileHandler } = require('../../helpers/file-helpers')
 const { getUser } = require('../../helpers/auth-helpers')
@@ -6,22 +6,13 @@ const userController = {
   signUpPage: (req, res) => {
     res.render('signup')
   },
-  signUp: (req, res) => {
-    if (req.body.password !== req.body.passwordCheck) throw new Error('Password do not match!')
-    User.findOne({ where: { email: req.body.email } })
-      .then(user => {
-        if (user) throw new Error('Email already exists!')
-        return bcrypt.hash(req.body.password, 10)
-      })
-      .then(hash => User.create({
-        name: req.body.name,
-        email: req.body.email,
-        password: hash
-      }))
-      .then(() => {
-        req.flash('success_messages', '成功註冊帳號！')
-        res.redirect('/signin')
-      })
+  signUp: (req, res, next) => {
+    userServices.signUp(req, (err, data) => {
+      if (err) return next(err)
+      req.flash('success_messages', '成功註冊帳號！')
+      req.session.createdUser = data // 把”新增餐廳後的資料”存在 session 中，見 express-session 的 req.session。
+      return res.redirect('/signin')
+    })
   },
   signInPage: (req, res) => {
     res.render('signin')
